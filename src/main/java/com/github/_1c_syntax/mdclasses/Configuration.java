@@ -166,6 +166,10 @@ public class Configuration {
    */
   private List<MDOModule> modules;
   /**
+   * Защищенные модули конфигурации
+   */
+  private List<MDOModule> protectedModules;
+  /**
    * Режимы поддержки в связке со ссылкой на файлы
    */
   private Map<URI, Map<SupportConfiguration, SupportVariant>> modulesBySupport;
@@ -202,6 +206,7 @@ public class Configuration {
     modulesBySupport = Collections.emptyMap();
     modulesByObject = Collections.emptyMap();
     modules = Collections.emptyList();
+    protectedModules = Collections.emptyList();
     commonModules = Collections.emptyMap();
     languages = Collections.emptyMap();
     modulesByMDORef = Collections.emptyMap();
@@ -282,32 +287,23 @@ public class Configuration {
     briefInformation = mdoConfiguration.getBriefInformation();
     detailedInformation = mdoConfiguration.getDetailedInformation();
 
-    Map<URI, ModuleType> modulesType = new HashMap<>();
-    Map<URI, Map<SupportConfiguration, SupportVariant>> modulesSupport = new HashMap<>();
-    Map<URI, AbstractMDObjectBSL> modulesObject = new HashMap<>();
-    Map<String, Map<ModuleType, URI>> modulesMDORef = new CaseInsensitiveMap<>();
-    List<MDOModule> modulesList = new ArrayList<>();
+    modulesBySupport = new HashMap<>();
+    modulesByType = new HashMap<>();
+    modulesByObject = new HashMap<>();
+    modules = new ArrayList<>();
+    protectedModules = new ArrayList<>();
+    modulesByMDORef = new CaseInsensitiveMap<>();
+
     final Map<String, Map<SupportConfiguration, SupportVariant>> supportMap = getSupportMap();
 
     children.forEach((AbstractMDObjectBase mdo) -> {
 
       var supports = supportMap.getOrDefault(mdo.getUuid(), Collections.emptyMap());
       if (mdo instanceof AbstractMDObjectBSL) {
-        computeModules(modulesType,
-          modulesSupport,
-          modulesObject,
-          modulesList,
-          modulesMDORef,
-          (AbstractMDObjectBSL) mdo,
-          supports);
+        computeModules((AbstractMDObjectBSL) mdo,
+            supports);
       }
     });
-
-    modulesBySupport = modulesSupport;
-    modulesByType = modulesType;
-    modulesByObject = modulesObject;
-    modules = modulesList;
-    modulesByMDORef = modulesMDORef;
   }
 
   /**
@@ -406,24 +402,24 @@ public class Configuration {
   }
 
   // todo надо рефакторить!!!!
-  private static void computeModules(Map<URI, ModuleType> modulesType,
-                                     Map<URI, Map<SupportConfiguration, SupportVariant>> modulesSupport,
-                                     Map<URI, AbstractMDObjectBSL> modulesObject,
-                                     List<MDOModule> modulesList,
-                                     Map<String, Map<ModuleType, URI>> modulesMDORef, AbstractMDObjectBSL mdo,
-                                     Map<SupportConfiguration, SupportVariant> supports) {
+  private void computeModules(AbstractMDObjectBSL mdo,
+                              Map<SupportConfiguration, SupportVariant> supports) {
     Map<ModuleType, URI> modulesTypesAndURIs = new EnumMap<>(ModuleType.class);
     mdo.getModules().forEach((MDOModule module) -> {
-      var uri = module.getUri();
-      modulesType.put(uri, module.getModuleType());
-      modulesTypesAndURIs.put(module.getModuleType(), uri);
-      modulesObject.put(uri, mdo);
-      if (!supports.isEmpty()) {
-        modulesSupport.put(uri, supports);
+      if (module.isProtected()) {
+        protectedModules.add(module);
+      } else {
+        var uri = module.getUri();
+        modulesByType.put(uri, module.getModuleType());
+        modulesTypesAndURIs.put(module.getModuleType(), uri);
+        modulesByObject.put(uri, mdo);
+        if (!supports.isEmpty()) {
+          modulesBySupport.put(uri, supports);
+        }
+        modules.add(module);
       }
-      modulesList.add(module);
     });
-    modulesMDORef.put(mdo.getMdoReference().getMdoRef(), modulesTypesAndURIs);
+    modulesByMDORef.put(mdo.getMdoReference().getMdoRef(), modulesTypesAndURIs);
   }
 
   private static Set<AbstractMDObjectBase> getAllChildren(MDConfiguration mdoConfiguration) {
