@@ -50,4 +50,9 @@ public class MDOModule {
    * Ссылка на объект метаданных которому принадлежит модуль
    */
   AbstractMDObjectBSL owner;
+
+  /**
+   * Запаролен модуль объекта или нет
+   */
+  boolean isProtected;
 }
